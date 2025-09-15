@@ -489,7 +489,7 @@ end
 @generated function load(x::Type{LVec{N, T}}, ptr::LLVMPtr{T, AS},
                          ::Val{Al}=Val(false), ::Val{Te}=Val(false)) where {N, T, AS, Al, Te}
     s = """
-    %ptr = $argtoptr $(llvm_type(LLVMPtr{T, AS})) %0 to $(llvm_type(LLVMPtr{LVec{N, T}, AS}))
+    %ptr = bitcast $(llvm_type(LLVMPtr{UInt8, AS})) %0 to $(llvm_type(LLVMPtr{LVec{N, T}, AS}))
     %res = load <$N x $(d[T])>, $(llvm_type(LLVMPtr{LVec{N, T}, AS})) %ptr, align $(n_align(Al, N, T)) $(temporal_str(Te))
     ret <$N x $(d[T])> %res
     """
@@ -527,10 +527,10 @@ end
     mod = """
         declare <$N x $(d[T])> @llvm.masked.load.$(suffix(N, T))($(llvm_type(LLVMPtr{LVec{N, T}, AS})), i32, <$N x i1>, <$N x $(d[T])>)
 
-        define <$N x $(d[T])> @entry($(d[Ptr]), <$(N) x i8>) #0 {
+        define <$N x $(d[T])> @entry($(llvm_type(LLVMPtr{UInt8, AS})), <$(N) x i8>) #0 {
         top:
             %mask = trunc <$(N) x i8> %1 to <$(N) x i1>
-            %ptr = $argtoptr $(d[Ptr]) %0 to $(llvm_type(LLVMPtr{LVec{N, T}, AS}))
+            %ptr = bitcast $(llvm_type(LLVMPtr{UInt8, AS})) %0 to $(llvm_type(LLVMPtr{LVec{N, T}, AS}))
             %res = call <$N x $(d[T])> @llvm.masked.load.$(suffix(N, T))($(llvm_type(LLVMPtr{LVec{N, T}, AS})) %ptr, i32 $(n_align(Al, N, T)), <$N x i1> %mask, <$N x $(d[T])> zeroinitializer)
             ret <$N x $(d[T])> %res
         }
@@ -560,7 +560,7 @@ end
 @generated function store(x::LVec{N, T}, ptr::LLVMPtr{T, AS},
                           ::Val{Al}=Val(false), ::Val{Te}=Val(false)) where {N, T, AS, Al, Te}
     s = """
-    %ptr = $argtoptr $(llvm_type(LLVMPtr{T, AS})) %1 to $(llvm_type(LLVMPtr{LVec{N, T}, AS}))
+    %ptr = bitcast $(llvm_type(LLVMPtr{UInt8, AS})) %1 to $(llvm_type(LLVMPtr{LVec{N, T}, AS}))
     store <$N x $(d[T])> %0, $(llvm_type(LLVMPtr{LVec{N, T}, AS})) %ptr, align $(n_align(Al, N, T)) $(temporal_str(Te))
     ret void
     """
@@ -599,10 +599,10 @@ end
     mod = """
         declare void @llvm.masked.store.$(suffix(N, T))(<$N x $(d[T])>, $(llvm_type(LLVMPtr{LVec{N, T}, AS})), i32, <$N x i1>)
 
-        define void @entry(<$N x $(d[T])>, $(llvm_type(LLVMPtr{T, AS})), <$(N) x i8>) #0 {
+        define void @entry(<$N x $(d[T])>, $(llvm_type(LLVMPtr{UInt8, AS})), <$(N) x i8>) #0 {
         top:
             %mask = trunc <$(N) x i8> %2 to <$(N) x i1>
-            %ptr = $argtoptr $(llvm_type(LLVMPtr{T, AS})) %1 to $(llvm_type(LLVMPtr{LVec{N, T}, AS}))
+            %ptr = bitcast $(llvm_type(LLVMPtr{UInt8, AS})) %1 to $(llvm_type(LLVMPtr{LVec{N, T}, AS}))
             call void @llvm.masked.store.$(suffix(N, T))(<$N x $(d[T])> %0, $(llvm_type(LLVMPtr{LVec{N, T}, AS})) %ptr, i32 $(n_align(Al, N, T)), <$N x i1> %mask)
             ret void
         }
@@ -642,10 +642,10 @@ end
     mod = """
         declare <$N x $(d[T])> @llvm.masked.expandload.$(suffix(N, T))($(llvm_type(LLVMPtr{T, AS})), <$N x i1>, <$N x $(d[T])>)
 
-        define <$N x $(d[T])> @entry($(llvm_type(LLVMPtr{T, AS})), <$(N) x i8>) #0 {
+        define <$N x $(d[T])> @entry($(llvm_type(LLVMPtr{UInt8, AS})), <$(N) x i8>) #0 {
         top:
             %mask = trunc <$(N) x i8> %1 to <$(N) x i1>
-            %ptr = $argtoptr $(llvm_type(LLVMPtr{T, AS})) %0 to $(llvm_type(LLVMPtr{T, AS}))
+            %ptr = bitcast $(llvm_type(LLVMPtr{UInt8, AS})) %0 to $(llvm_type(LLVMPtr{T, AS}))
             %res = call <$N x $(d[T])> @llvm.masked.expandload.$(suffix(N, T))($(llvm_type(LLVMPtr{T, AS})) %ptr, <$N x i1> %mask, <$N x $(d[T])> zeroinitializer)
             ret <$N x $(d[T])> %res
         }
@@ -685,10 +685,10 @@ end
     mod = """
         declare void @llvm.masked.compressstore.$(suffix(N, T))(<$N x $(d[T])>, $(llvm_type(LLVMPtr{T, AS})), <$N x i1>)
 
-        define void @entry(<$N x $(d[T])>, $(llvm_type(LLVMPtr{T, AS})), <$(N) x i8>) #0 {
+        define void @entry(<$N x $(d[T])>, $(llvm_type(LLVMPtr{UInt8, AS})), <$(N) x i8>) #0 {
         top:
             %mask = trunc <$(N) x i8> %2 to <$(N) x i1>
-            %ptr = $argtoptr $(llvm_type(LLVMPtr{T, AS})) %1 to $(llvm_type(LLVMPtr{T, AS}))
+            %ptr = bitcast $(llvm_type(LLVMPtr{UInt8, AS})) %1 to $(llvm_type(LLVMPtr{T, AS}))
             call void @llvm.masked.compressstore.$(suffix(N, T))(<$N x $(d[T])> %0, $(llvm_type(LLVMPtr{T, AS})) %ptr, <$N x i1> %mask)
             ret void
         }
@@ -734,10 +734,10 @@ end
     mod = """
         declare <$N x $(d[T])> @llvm.masked.gather.$(suffix(N, T))(<$N x $(llvm_type(LLVMPtr{T, AS}))>, i32, <$N x i1>, <$N x $(d[T])>)
 
-        define <$N x $(d[T])> @entry(<$N x $(llvm_type(LLVMPtr{T, AS}))>, <$(N) x i8>) #0 {
+        define <$N x $(d[T])> @entry(<$N x $(llvm_type(LLVMPtr{UInt8, AS}))>, <$(N) x i8>) #0 {
         top:
             %mask = trunc <$(N) x i8> %1 to <$(N) x i1>
-            %ptrs = $argtoptr <$N x $(llvm_type(LLVMPtr{T, AS}))> %0 to <$N x $(llvm_type(LLVMPtr{T, AS}))>
+            %ptrs = bitcast <$N x $(llvm_type(LLVMPtr{UInt8, AS}))> %0 to <$N x $(llvm_type(LLVMPtr{T, AS}))>
             %res = call <$N x $(d[T])> @llvm.masked.gather.$(suffix(N, T))(<$N x $(llvm_type(LLVMPtr{T, AS}))> %ptrs, i32 $(n_align(Al, N, T)), <$N x i1> %mask, <$N x $(d[T])> zeroinitializer)
             ret <$N x $(d[T])> %res
         }
@@ -777,10 +777,10 @@ end
     mod = """
         declare void @llvm.masked.scatter.$(suffix(N, T))(<$N x $(d[T])>, <$N x $(llvm_type(LLVMPtr{T, AS}))>, i32, <$N x i1>)
 
-        define void @entry(<$N x $(d[T])>, <$N x $(llvm_type(LLVMPtr{T, AS}))>, <$(N) x i8>) #0 {
+        define void @entry(<$N x $(d[T])>, <$N x $(llvm_type(LLVMPtr{UInt8, AS}))>, <$(N) x i8>) #0 {
         top:
             %mask = trunc <$(N) x i8> %2 to <$(N) x i1>
-            %ptrs = $argtoptr <$N x $(llvm_type(LLVMPtr{T, AS}))> %1 to <$N x $(llvm_type(LLVMPtr{T, AS}))>
+            %ptrs = bitcast <$N x $(llvm_type(LLVMPtr{UInt8, AS}))> %1 to <$N x $(llvm_type(LLVMPtr{T, AS}))>
             call void @llvm.masked.scatter.$(suffix(N, T))(<$N x $(d[T])> %0, <$N x $(llvm_type(LLVMPtr{T, AS}))> %ptrs, i32 $(n_align(Al, N, T)), <$N x i1> %mask)
             ret void
         }
@@ -936,6 +936,17 @@ end
     )
 end
 
+@generated function inttoptr(::Type{LVec{N, LLVMPtr{T2, AS}}}, x::LVec{N, T1}) where {N, T1 <: IntegerTypes, T2 <: Union{IntegerTypes, FloatingTypes}, AS}
+    s = """
+    %2 = inttoptr <$(N) x $(d[T1])> %0 to <$(N) x $(llvm_type(LLVMPtr{UInt8, AS}))>
+    ret <$(N) x $(llvm_type(LLVMPtr{UInt8, AS}))> %2
+    """
+    return :(
+        $(Expr(:meta, :inline));
+        Base.llvmcall($s, LVec{N, LLVMPtr{T2, AS}}, Tuple{LVec{N, T1}}, x)
+    )
+end
+
 @generated function ptrtoint(::Type{LVec{N, T2}}, x::LVec{N, Ptr{T1}}) where {N, T1 <: Union{IntegerTypes, FloatingTypes}, T2 <: IntegerTypes}
     convert = VERSION >= v"1.12-DEV" ? "ptrtoint" : "bitcast"
     s = """
@@ -945,6 +956,17 @@ end
     return :(
         $(Expr(:meta, :inline));
         Base.llvmcall($s, LVec{N, T2}, Tuple{LVec{N, Ptr{T1}}}, x)
+    )
+end
+
+@generated function ptrtoint(::Type{LVec{N, T2}}, x::LVec{N, LLVMPtr{T1, AS}}) where {N, T1 <: Union{IntegerTypes, FloatingTypes}, T2 <: IntegerTypes, AS}
+    s = """
+    %2 = ptrtoint <$(N) x $(llvm_type(LLVMPtr{UInt8, AS}))> %0 to <$(N) x $(d[T2])>
+    ret <$(N) x $(d[T2])> %2
+    """
+    return :(
+        $(Expr(:meta, :inline));
+        Base.llvmcall($s, LVec{N, T2}, Tuple{LVec{N, LLVMPtr{T1, AS}}}, x)
     )
 end
 

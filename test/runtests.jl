@@ -3,6 +3,8 @@ using Test, InteractiveUtils
 
 using Base: setindex
 
+include("opencl.jl")
+
 """
     llvm_ir(f, args) :: String
 

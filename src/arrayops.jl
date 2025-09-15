@@ -45,17 +45,8 @@ FastContiguousArray{T,N} = Union{DenseArray{T,N}, Base.FastContiguousSubArray{T,
 # https://github.com/JuliaArrays/MappedArrays.jl/pull/24#issuecomment-460568978
 
 # vload
-@propagate_inbounds function vload(::Type{Vec{N, T}}, ptr::Ptr{T}, mask::Union{Nothing, Vec{N, Bool}}=nothing,
+@propagate_inbounds function vload(::Type{Vec{N, T}}, ptr::Union{Ptr{T}, LLVMPtr{T}}, mask::Union{Nothing, Vec{N, Bool}}=nothing,
                        ::Val{Aligned}=Val(false), ::Val{Nontemporal}=Val(false)) where {N, T, Aligned, Nontemporal}
-    if mask === nothing
-        Vec(Intrinsics.load(Intrinsics.LVec{N, T}, ptr, Val(Aligned), Val(Nontemporal)))
-    else
-        Vec(Intrinsics.maskedload(ptr, mask.data, Val(Aligned), Val(Nontemporal)))
-    end
-end
-
-@propagate_inbounds function vload(::Type{Vec{N, T}}, ptr::LLVMPtr{T, AS}, mask::Union{Nothing, Vec{N, Bool}}=nothing,
-                       ::Val{Aligned}=Val(false), ::Val{Nontemporal}=Val(false)) where {N, T, AS, Aligned, Nontemporal}
     if mask === nothing
         Vec(Intrinsics.load(Intrinsics.LVec{N, T}, ptr, Val(Aligned), Val(Nontemporal)))
     else
@@ -71,25 +62,14 @@ end
         vload(Vec{N, T}, ptr, mask, Val(Aligned), Val(Nontemporal))
     end
 end
-@propagate_inbounds vloada(::Type{Vec{N, T}}, ptr::Ptr{T}, mask=nothing) where {N, T} = vload(Vec{N, T}, ptr, mask, Val(true))
-@propagate_inbounds vloadnt(::Type{Vec{N, T}}, ptr::Ptr{T}, mask=nothing) where {N, T} = vload(Vec{N, T}, ptr, mask, Val(true), Val(true))
-@propagate_inbounds vloada(::Type{Vec{N, T}}, ptr::LLVMPtr{T, AS}, mask=nothing) where {N, T, AS} = vload(Vec{N, T}, ptr, mask, Val(true))
-@propagate_inbounds vloadnt(::Type{Vec{N, T}}, ptr::LLVMPtr{T, AS}, mask=nothing) where {N, T, AS} = vload(Vec{N, T}, ptr, mask, Val(true), Val(true))
+@propagate_inbounds vloada(::Type{Vec{N, T}}, ptr::Union{Ptr{T}, LLVMPtr{T}}, mask=nothing) where {N, T} = vload(Vec{N, T}, ptr, mask, Val(true))
+@propagate_inbounds vloadnt(::Type{Vec{N, T}}, ptr::Union{Ptr{T}, LLVMPtr{T}}, mask=nothing) where {N, T} = vload(Vec{N, T}, ptr, mask, Val(true), Val(true))
 @propagate_inbounds vloada(::Type{Vec{N, T}}, a::FastContiguousArray{T,1}, i::Integer, mask=nothing) where {N, T} = vload(Vec{N, T}, a, i, mask, Val(true))
 @propagate_inbounds vloadnt(::Type{Vec{N, T}}, a::FastContiguousArray{T,1}, i::Integer, mask=nothing) where {N, T} = vload(Vec{N, T}, a, i, mask, Val(true), Val(true))
 
 # vstore
-@propagate_inbounds function vstore(x::Vec{N, T}, ptr::Ptr{T}, mask::Union{Nothing, Vec{N, Bool}}=nothing,
+@propagate_inbounds function vstore(x::Vec{N, T}, ptr::Union{Ptr{T}, LLVMPtr{T}}, mask::Union{Nothing, Vec{N, Bool}}=nothing,
                        ::Val{Aligned}=Val(false), ::Val{Nontemporal}=Val(false)) where {N, T, Aligned, Nontemporal}
-    if mask === nothing
-        Intrinsics.store(x.data, ptr, Val(Aligned), Val(Nontemporal))
-    else
-        Intrinsics.maskedstore(x.data, ptr, mask.data, Val(Aligned), Val(Nontemporal))
-    end
-end
-
-@propagate_inbounds function vstore(x::Vec{N, T}, ptr::LLVMPtr{T, AS}, mask::Union{Nothing, Vec{N, Bool}}=nothing,
-                       ::Val{Aligned}=Val(false), ::Val{Nontemporal}=Val(false)) where {N, T, AS, Aligned, Nontemporal}
     if mask === nothing
         Intrinsics.store(x.data, ptr, Val(Aligned), Val(Nontemporal))
     else
@@ -105,17 +85,12 @@ end
     end
     return a
 end
-@propagate_inbounds vstorea(x::Vec, ptr::Ptr, mask=nothing) = vstore(x, ptr, mask, Val(true))
-@propagate_inbounds vstorent(x::Vec, ptr::Ptr, mask=nothing) = vstore(x, ptr, mask, Val(true), Val(true))
-@propagate_inbounds vstorea(x::Vec, ptr::LLVMPtr, mask=nothing) = vstore(x, ptr, mask, Val(true))
-@propagate_inbounds vstorent(x::Vec, ptr::LLVMPtr, mask=nothing) = vstore(x, ptr, mask, Val(true), Val(true))
+@propagate_inbounds vstorea(x::Vec, ptr::Union{Ptr, LLVMPtr}, mask=nothing) = vstore(x, ptr, mask, Val(true))
+@propagate_inbounds vstorent(x::Vec, ptr::Union{Ptr, LLVMPtr}, mask=nothing) = vstore(x, ptr, mask, Val(true), Val(true))
 @propagate_inbounds vstorea(x::Vec, a, i, mask=nothing) = vstore(x, a, i, mask, Val(true))
 @propagate_inbounds vstorent(x::Vec, a, i, mask=nothing) = vstore(x, a, i, mask, Val(true), Val(true))
 
-@inline vloadx(ptr::Ptr, mask::Vec{<:Any, Bool}) =
-    Vec(Intrinsics.maskedexpandload(ptr, mask.data))
-
-@inline vloadx(ptr::LLVMPtr, mask::Vec{<:Any, Bool}) =
+@inline vloadx(ptr::Union{Ptr, LLVMPtr}, mask::Vec{<:Any, Bool}) =
     Vec(Intrinsics.maskedexpandload(ptr, mask.data))
 
 @propagate_inbounds function vloadx(a::FastContiguousArray{T,1},
@@ -127,10 +102,7 @@ end
     end
 end
 
-@inline vstorec(x::Vec{N, T}, ptr::Ptr{T}, mask::Vec{N, Bool}) where {N, T} =
-    Intrinsics.maskedcompressstore(x.data, ptr, mask.data)
-
-@inline vstorec(x::Vec{N, T}, ptr::LLVMPtr{T, AS}, mask::Vec{N, Bool}) where {N, T, AS} =
+@inline vstorec(x::Vec{N, T}, ptr::Union{Ptr{T}, LLVMPtr{T}}, mask::Vec{N, Bool}) where {N, T} =
     Intrinsics.maskedcompressstore(x.data, ptr, mask.data)
 
 @propagate_inbounds function vstorec(x::Vec{N, T}, a::FastContiguousArray{T,1},
@@ -170,27 +142,20 @@ function valloc(f, ::Type{T}, N::Int, sz::Int) where T
     mem
 end
 
-@inline function _get_vec_pointers(a, idx::Vec{N, Int}) where {N}
+@inline function _get_vec_pointers(a, idx::Vec{N, <:Integer}) where {N}
     ptrs = pointer(a) + (idx - 1) * sizeof(eltype(a))
 end
 
 # Have to be careful with optional arguments and @boundscheck,
 # see https://github.com/JuliaLang/julia/issues/30411,
 # therefore use @propagate_inbounds
-@inline vgather(ptrs::Vec{N,Ptr{T}},
+@inline vgather(ptrs::Vec{N,<:Union{Ptr{T}, LLVMPtr{T}}},
                  mask::Vec{N,Bool}=one(Vec{N,Bool}),
                  ::Val{Aligned}=Val(false)) where {N, T<:ScalarTypes, Aligned} =
     return Vec(Intrinsics.maskedgather(ptrs.data, mask.data))
-@inline vgather(ptrs::Vec{<:Any,<:Ptr{<:ScalarTypes}}, ::Nothing, aligned::Val = Val(false)) =
+@inline vgather(ptrs::Vec{<:Any,<:Union{Ptr{<:ScalarTypes}, LLVMPtr{<:ScalarTypes}}}, ::Nothing, aligned::Val = Val(false)) =
     vgather(ptrs, one(Vec{length(ptrs),Bool}), aligned)
-
-@inline vgather(ptrs::Vec{N,LLVMPtr{T,AS}},
-                 mask::Vec{N,Bool}=one(Vec{N,Bool}),
-                 ::Val{Aligned}=Val(false)) where {N, T<:ScalarTypes, AS, Aligned} =
-    return Vec(Intrinsics.maskedgather(ptrs.data, mask.data))
-@inline vgather(ptrs::Vec{<:Any,<:LLVMPtr{<:ScalarTypes}}, ::Nothing, aligned::Val = Val(false)) =
-    vgather(ptrs, one(Vec{length(ptrs),Bool}), aligned)
-@propagate_inbounds function vgather(a::FastContiguousArray{T,1}, idx::Vec{N, Int},
+@propagate_inbounds function vgather(a::FastContiguousArray{T,1}, idx::Vec{N, <:Integer},
                                      mask::Vec{N,Bool}=one(Vec{N,Bool}),
                                      ::Val{Aligned}=Val(false)) where {N, T<:ScalarTypes, Aligned}
     @boundscheck for i in 1:N
@@ -203,27 +168,20 @@ end
 end
 @propagate_inbounds vgathera(a, idx, mask) = vgather(a, idx, mask, Val(true))
 @propagate_inbounds vgathera(a, idx::Vec{N}) where {N} = vgather(a, idx, one(Vec{N,Bool}), Val(true))
-@propagate_inbounds vgathera(ptrs::Vec{N,LLVMPtr{T,AS}}, mask::Vec{N,Bool}) where {N,T,AS} = vgather(ptrs, mask, Val(true))
-@propagate_inbounds vgathera(ptrs::Vec{N,LLVMPtr{T,AS}}) where {N,T,AS} = vgather(ptrs, one(Vec{N,Bool}), Val(true))
+@propagate_inbounds vgathera(ptrs::Vec{N,<:Union{Ptr{T}, LLVMPtr{T}}}, mask::Vec{N,Bool}) where {N,T} = vgather(ptrs, mask, Val(true))
+@propagate_inbounds vgathera(ptrs::Vec{N,<:Union{Ptr{T}, LLVMPtr{T}}}) where {N,T} = vgather(ptrs, one(Vec{N,Bool}), Val(true))
 
-@propagate_inbounds Base.getindex(a::FastContiguousArray{T,1}, idx::Vec{N,Int}) where {N,T} =
+@propagate_inbounds Base.getindex(a::FastContiguousArray{T,1}, idx::Vec{N,<:Integer}) where {N,T} =
     vgather(a, idx)
 
 
-@propagate_inbounds vscatter(x::Vec{N,T}, ptrs::Vec{N,Ptr{T}},
+@propagate_inbounds vscatter(x::Vec{N,T}, ptrs::Vec{N,<:Union{Ptr{T}, LLVMPtr{T}}},
                              mask::Vec{N,Bool}, ::Val{Aligned}=Val(false)) where {N, T<:ScalarTypes, Aligned} =
     Intrinsics.maskedscatter(x.data, ptrs.data, mask.data)
-@inline vscatter(x::Vec{N,T}, ptrs::Vec{N,Ptr{T}},
+@inline vscatter(x::Vec{N,T}, ptrs::Vec{N,<:Union{Ptr{T}, LLVMPtr{T}}},
                  ::Nothing, aligned::Val=Val(false)) where {N, T<:ScalarTypes} =
     vscatter(x, ptrs, one(Vec{N, Bool}), aligned)
-
-@propagate_inbounds vscatter(x::Vec{N,T}, ptrs::Vec{N,LLVMPtr{T,AS}},
-                             mask::Vec{N,Bool}, ::Val{Aligned}=Val(false)) where {N, T<:ScalarTypes, AS, Aligned} =
-    Intrinsics.maskedscatter(x.data, ptrs.data, mask.data)
-@inline vscatter(x::Vec{N,T}, ptrs::Vec{N,LLVMPtr{T,AS}},
-                 ::Nothing, aligned::Val=Val(false)) where {N, T<:ScalarTypes, AS} =
-    vscatter(x, ptrs, one(Vec{N, Bool}), aligned)
-@propagate_inbounds function vscatter(x::Vec{N,T}, a::FastContiguousArray{T,1}, idx::Vec{N, Int},
+@propagate_inbounds function vscatter(x::Vec{N,T}, a::FastContiguousArray{T,1}, idx::Vec{N, <:Integer},
                                       mask::Vec{N,Bool}=one(Vec{N, Bool}),
                                       ::Val{Aligned}=Val(false)) where {N, T<:ScalarTypes, Aligned}
     @boundscheck for i in 1:N
@@ -237,10 +195,10 @@ end
 end
 @propagate_inbounds vscattera(x, a, idx, mask) = vscatter(x, a, idx, mask, Val(true))
 @propagate_inbounds vscattera(x, a, idx::Vec{N}) where {N}  = vscatter(x, a, idx, one(Vec{N,Bool}), Val(true))
-@propagate_inbounds vscattera(x::Vec{N,T}, ptrs::Vec{N,LLVMPtr{T,AS}}, mask::Vec{N,Bool}) where {N,T,AS} = vscatter(x, ptrs, mask, Val(true))
-@propagate_inbounds vscattera(x::Vec{N,T}, ptrs::Vec{N,LLVMPtr{T,AS}}) where {N,T,AS} = vscatter(x, ptrs, one(Vec{N,Bool}), Val(true))
+@propagate_inbounds vscattera(x::Vec{N,T}, ptrs::Vec{N,<:Union{Ptr{T}, LLVMPtr{T}}}, mask::Vec{N,Bool}) where {N,T} = vscatter(x, ptrs, mask, Val(true))
+@propagate_inbounds vscattera(x::Vec{N,T}, ptrs::Vec{N,<:Union{Ptr{T}, LLVMPtr{T}}}) where {N,T} = vscatter(x, ptrs, one(Vec{N,Bool}), Val(true))
 
-@propagate_inbounds Base.setindex!(a::FastContiguousArray{T,1}, v::Vec{N,T}, idx::Vec{N,Int}) where {N, T} =
+@propagate_inbounds Base.setindex!(a::FastContiguousArray{T,1}, v::Vec{N,T}, idx::Vec{N,<:Integer}) where {N, T} =
     vscatter(v, a, idx)
 
 
